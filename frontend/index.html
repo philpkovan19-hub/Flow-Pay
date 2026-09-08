@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>FlowPay — Money that moves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.0/ethers.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #050508;
+    --bg-2: #0a0a12;
+    --panel: rgba(20, 20, 32, 0.72);
+    --panel-2: rgba(28, 28, 44, 0.55);
+    --border: rgba(120, 140, 220, 0.14);
+    --border-strong: rgba(120, 140, 220, 0.28);
+    --text: #e8ecf7;
+    --muted: #8890b2;
+    --dim: #5a6084;
+    --teal: #2ee6c4;
+    --violet: #8b5cf6;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+    --danger: #ff5c7a;
+    --ok: #4ade80;
+    --grad: linear-gradient(90deg, #2ee6c4 0%, #22d3ee 40%, #8b5cf6 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(46, 230, 196, 0.10), transparent 60%),
+      radial-gradient(1000px 600px at 90% 10%, rgba(139, 92, 246, 0.12), transparent 60%),
+      radial-gradient(900px 500px at 50% 110%, rgba(34, 211, 238, 0.08), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Topbar */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    background: rgba(5, 5, 8, 0.66);
+    border-bottom: 1px solid var(--border);
+  }
+  .wordmark {
+    font-weight: 800; font-size: 22px; letter-spacing: -0.02em;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    background-size: 200% 100%;
+    animation: shift 6s ease-in-out infinite;
+  }
+  @keyframes shift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+  .nav-links { display: flex; gap: 22px; align-items: center; }
+  .nav-links a { color: var(--muted); font-size: 14px; }
+  .nav-links a:hover { color: var(--text); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 999px; font-weight: 600; font-size: 14px;
+    border: 1px solid var(--border-strong);
+    background: rgba(255,255,255,0.03);
+    color: var(--text); cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn:hover { border-color: rgba(46, 230, 196, 0.5); transform: translateY(-1px); }
+  .btn-primary {
+    background: var(--grad); color: #06121a; border: none; font-weight: 700;
+    background-size: 200% 100%;
+  }
+  .btn-primary:hover { background-position: 100% 50%; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; }
+  .btn-danger { color: var(--danger); border-color: rgba(255,92,122,0.4); }
+  .btn-danger:hover { background: rgba(255,92,122,0.08); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* Hero */
+  .hero {
+    position: relative; z-index: 1;
+    padding: 80px 28px 60px;
+    max-width: 1180px; margin: 0 auto;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: clamp(40px, 6vw, 76px);
+    line-height: 1.03;
+    letter-spacing: -0.035em;
+    margin: 12px 0 20px;
+    font-weight: 800;
+  }
+  .hero h1 .accent {
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+    background-size: 200% 100%; animation: shift 6s ease-in-out infinite;
+  }
+  .hero p.lead {
+    color: var(--muted); font-size: 18px; max-width: 620px; margin: 0 auto 28px;
+    line-height: 1.55;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px;
+    background: rgba(46, 230, 196, 0.08);
+    border: 1px solid rgba(46, 230, 196, 0.28);
+    color: var(--teal); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .hero-badge .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--teal);
+    box-shadow: 0 0 12px var(--teal);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% {opacity:1;} 50% {opacity:0.35;} }
+
+  .hero-cta { display: inline-flex; gap: 12px; margin-top: 8px; }
+
+  /* Stream visual */
+  .stream-visual {
+    margin: 60px auto 0; max-width: 900px;
+    height: 120px; position: relative; overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(10,10,20,0.5), rgba(5,5,10,0.8));
+  }
+  .stream-visual::before, .stream-visual::after {
+    content: '';
+    position: absolute; top: 0; bottom: 0; width: 200%;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(46, 230, 196, 0.20) 20%,
+      rgba(34, 211, 238, 0.35) 45%,
+      rgba(139, 92, 246, 0.35) 65%,
+      rgba(46, 230, 196, 0.20) 85%,
+      transparent 100%);
+    filter: blur(14px);
+    animation: flow 6s linear infinite;
+  }
+  .stream-visual::after {
+    animation-duration: 9s;
+    animation-delay: -3s;
+    opacity: 0.6;
+    filter: blur(24px);
+  }
+  @keyframes flow { from { transform: translateX(-50%); } to { transform: translateX(0%); } }
+
+  /* How it flows */
+  .how {
+    max-width: 1180px; margin: 100px auto; padding: 0 28px;
+    position: relative; z-index: 1;
+  }
+  .how h2 { font-size: 32px; letter-spacing: -0.02em; margin: 0 0 40px; text-align: center; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 780px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    padding: 28px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+  }
+  .step .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 12px;
+    background: var(--grad); color: #06121a; font-weight: 800;
+    margin-bottom: 14px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .step h3 { margin: 0 0 8px; font-size: 18px; }
+  .step p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+
+  /* App section */
+  .app {
+    max-width: 1180px; margin: 60px auto 100px; padding: 0 28px;
+    position: relative; z-index: 1;
+  }
+  .section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  .section-header h2 { font-size: 24px; letter-spacing: -0.02em; margin: 0; }
+  .section-header .sub { color: var(--dim); font-size: 13px; }
+
+  /* Stats */
+  .stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    margin-bottom: 30px;
+  }
+  @media (max-width: 780px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat {
+    padding: 18px 20px;
+    border-radius: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
+  .stat .value { font-size: 22px; font-weight: 700; margin-top: 6px; letter-spacing: -0.01em; }
+
+  /* Open Stream form */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    backdrop-filter: blur(12px);
+  }
+  .form {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 12px; align-items: end;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 780px) { .form { grid-template-columns: 1fr; } }
+  .field label {
+    display: block; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--dim); margin-bottom: 6px;
+  }
+  .field input, .field select {
+    width: 100%; padding: 12px 14px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px; color: var(--text);
+    font-size: 14px; font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none; border-color: var(--teal);
+  }
+  .field input.mono { font-family: 'JetBrains Mono', monospace; }
+
+  .custom-secs { display: none; }
+  .custom-secs.show { display: block; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 6px; margin: 40px 0 18px; padding: 4px; background: var(--panel-2); border-radius: 14px; border: 1px solid var(--border); width: fit-content; }
+  .tab {
+    padding: 10px 18px; border-radius: 10px; cursor: pointer;
+    font-size: 14px; font-weight: 600; color: var(--muted);
+    transition: all 0.15s;
+  }
+  .tab.active { background: rgba(46, 230, 196, 0.12); color: var(--teal); }
+
+  /* Stream cards */
+  .streams { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .streams { grid-template-columns: 1fr; } }
+  .stream-card {
+    position: relative; overflow: hidden;
+    padding: 22px 22px 20px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(20,20,32,0.85), rgba(12,12,20,0.9));
+    border: 1px solid var(--border-strong);
+  }
+  .stream-card .river {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(46, 230, 196, 0.14) 20%,
+      rgba(34, 211, 238, 0.28) 45%,
+      rgba(139, 92, 246, 0.28) 65%,
+      rgba(46, 230, 196, 0.14) 85%,
+      transparent 100%);
+    background-size: 200% 100%;
+    filter: blur(30px);
+    opacity: 0.75;
+    pointer-events: none;
+  }
+  .stream-card.active .river { animation: river 8s linear infinite; }
+  .stream-card.inactive .river { display: none; }
+  @keyframes river {
+    from { background-position: -100% 0; }
+    to   { background-position: 100% 0; }
+  }
+  .stream-card .content { position: relative; z-index: 1; }
+  .stream-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .stream-parties { font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+  .stream-parties b { color: var(--text); font-weight: 500; }
+  .stream-status {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    padding: 4px 10px; border-radius: 999px;
+    background: rgba(46, 230, 196, 0.14); color: var(--teal);
+    border: 1px solid rgba(46, 230, 196, 0.3);
+  }
+  .stream-status.done { background: rgba(140,140,180,0.1); color: var(--dim); border-color: transparent; }
+  .amount-live {
+    font-size: 32px; font-weight: 700; letter-spacing: -0.02em;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+    background-size: 200% 100%;
+    animation: shift 5s ease-in-out infinite;
+    margin: 4px 0 2px;
+  }
+  .amount-sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  .amount-sub .mono { color: var(--text); }
+  .stream-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+  .progress {
+    height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden;
+    flex: 1;
+  }
+  .progress .bar {
+    height: 100%; background: var(--grad); background-size: 200% 100%;
+    animation: shift 4s ease-in-out infinite;
+    transition: width 0.8s ease-out;
+  }
+  .stream-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .stream-actions .btn { flex: 1; justify-content: center; padding: 9px 12px; font-size: 13px; }
+
+  .empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted);
+    border: 1px dashed var(--border-strong);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.015);
+  }
+  .empty h3 { color: var(--text); margin: 0 0 6px; font-weight: 600; }
+  .empty p { margin: 0; font-size: 14px; }
+
+  /* Toast */
+  .toast-wrap { position: fixed; bottom: 24px; right: 24px; z-index: 100; display: flex; flex-direction: column; gap: 10px; max-width: 380px; }
+  .toast {
+    padding: 14px 18px; border-radius: 12px;
+    background: rgba(20,20,32,0.95);
+    border: 1px solid var(--border-strong);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    animation: slidein 0.25s ease-out;
+    font-size: 14px;
+  }
+  .toast.ok { border-left: 3px solid var(--ok); }
+  .toast.err { border-left: 3px solid var(--danger); }
+  .toast.info { border-left: 3px solid var(--teal); }
+  @keyframes slidein { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  footer {
+    text-align: center; padding: 40px 20px; color: var(--dim);
+    font-size: 13px; border-top: 1px solid var(--border); position: relative; z-index: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="#top" class="wordmark">FlowPay</a>
+  <div class="nav-links">
+    <a href="#how">How it flows</a>
+    <a href="#appSection">App</a>
+    <button class="btn btn-primary" id="connectBtn">Connect Wallet</button>
+  </div>
+</div>
+
+<a id="top"></a>
+<section class="hero">
+  <div class="hero-badge"><span class="dot"></span> Live on BOT Chain</div>
+  <h1>Money that moves.<br /><span class="accent">Second by second.</span></h1>
+  <p class="lead">Open a stream to any wallet. BOT flows in real time — no waiting for payday, no batching, no reversals. Cancel any moment, keep what hasn't streamed.</p>
+  <div class="hero-cta">
+    <a href="#appSection" class="btn btn-primary">Open a stream</a>
+    <a href="#how" class="btn btn-ghost">How it works</a>
+  </div>
+
+  <div class="stream-visual" aria-hidden="true"></div>
+</section>
+
+<section class="how" id="how">
+  <h2>How it flows</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="n">01</div>
+      <h3>Escrow the total</h3>
+      <p>Send BOT to the FlowPay contract with a recipient and duration. The full amount is locked upfront.</p>
+    </div>
+    <div class="step">
+      <div class="n">02</div>
+      <h3>Stream by the second</h3>
+      <p>From the moment your tx is mined, BOT accrues to the recipient linearly at <code class="mono">rate = total / duration</code>.</p>
+    </div>
+    <div class="step">
+      <div class="n">03</div>
+      <h3>Withdraw or cancel, any time</h3>
+      <p>The recipient can withdraw what has streamed so far. The sender can cancel and reclaim the unstreamed remainder.</p>
+    </div>
+  </div>
+</section>
+
+<section class="app" id="appSection">
+
+  <div class="stats">
+    <div class="stat"><div class="label">Total Streams</div><div class="value mono" id="statTotal">—</div></div>
+    <div class="stat"><div class="label">Active Streams</div><div class="value mono" id="statActive">—</div></div>
+    <div class="stat"><div class="label">Total Volume Streamed</div><div class="value mono" id="statVolume">—</div></div>
+    <div class="stat"><div class="label">Your Balance</div><div class="value mono" id="statBalance">—</div></div>
+  </div>
+
+  <div class="section-header">
+    <h2>Open a stream</h2>
+    <div class="sub">Escrow now, flow per second</div>
+  </div>
+
+  <div class="card">
+    <div class="form">
+      <div class="field">
+        <label>Recipient address</label>
+        <input id="recipient" class="mono" placeholder="0x…" />
+      </div>
+      <div class="field">
+        <label>Amount (BOT)</label>
+        <input id="amount" class="mono" placeholder="1.0" />
+      </div>
+      <div class="field">
+        <label>Duration</label>
+        <select id="duration">
+          <option value="3600">1 hour</option>
+          <option value="86400" selected>1 day</option>
+          <option value="604800">7 days</option>
+          <option value="2592000">30 days</option>
+          <option value="custom">Custom (seconds)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="openBtn">Open Stream</button>
+    </div>
+    <div class="field custom-secs" id="customWrap">
+      <label>Custom duration (seconds)</label>
+      <input id="customSecs" class="mono" placeholder="e.g. 7200" />
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="incoming">Streams To You</div>
+    <div class="tab" data-tab="outgoing">Your Outgoing Streams</div>
+  </div>
+
+  <div id="tabIncoming" class="streams"></div>
+  <div id="tabOutgoing" class="streams" style="display:none"></div>
+
+  <div id="emptyContract" class="empty" style="display:none">
+    <h3>Contract not configured</h3>
+    <p>Set <code class="mono">CONTRACT_ADDRESS</code> in <code>frontend/index.html</code> after deploying FlowPay.</p>
+  </div>
+</section>
+
+<footer>
+  FlowPay · streaming payments on BOT Chain · <a href="https://scan.bohr.life" target="_blank">Testnet explorer</a>
+</footer>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+/* ==========================================================
+   FlowPay — frontend
+   Default: BOT Chain TESTNET
+   To switch to MAINNET, change these 5 values:
+     NETWORK.chainIdHex = "0x2A5"
+     NETWORK.chainIdDec = 677
+     NETWORK.name       = "BOT Chain"
+     NETWORK.rpc        = "https://rpc.botchain.ai"
+     NETWORK.explorer   = "https://scan.botchain.ai"
+   ========================================================== */
+
+const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const NETWORK = {
+  chainIdHex: "0x3C8",
+  chainIdDec: 968,
+  name: "BOT Chain Testnet",
+  rpc: "https://rpc.bohr.life",
+  explorer: "https://scan.bohr.life",
+  currency: { name: "BOT", symbol: "BOT", decimals: 18 },
+};
+
+const ABI = [
+  "function openStream(address recipient, uint256 durationSecs) external payable returns (uint256)",
+  "function withdraw(uint256 streamId) external",
+  "function cancel(uint256 streamId) external",
+  "function withdrawableAmount(uint256 streamId) public view returns (uint256)",
+  "function getStream(uint256 streamId) external view returns (address sender, address recipient, uint256 totalAmount, uint256 ratePerSec, uint256 startTime, uint256 duration, uint256 withdrawn, bool active)",
+  "function getStreamsBySender(address) external view returns (uint256[])",
+  "function getStreamsByRecipient(address) external view returns (uint256[])",
+  "function streamCount() external view returns (uint256)",
+  "event StreamOpened(uint256 indexed streamId, address indexed sender, address indexed recipient, uint256 totalAmount, uint256 ratePerSec, uint256 duration, uint256 startTime)",
+  "event Withdrawn(uint256 indexed streamId, address indexed recipient, uint256 amount)",
+  "event StreamCancelled(uint256 indexed streamId, address indexed sender, uint256 refundedToSender, uint256 paidToRecipient)",
+];
+
+let provider, signer, contract, account;
+let currentTab = "incoming";
+let tickTimer = null;
+let cachedStreams = { incoming: [], outgoing: [] };
+
+// ---------- Toast ----------
+function toast(msg, kind = "info", ms = 4200) {
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.textContent = msg;
+  document.getElementById("toasts").appendChild(el);
+  setTimeout(() => { el.style.opacity = 0; el.style.transition = "opacity .3s"; setTimeout(() => el.remove(), 300); }, ms);
+}
+
+// ---------- Helpers ----------
+const truncate = (a) => a ? a.slice(0, 6) + "…" + a.slice(-4) : "";
+const fmt = (wei, dp = 4) => {
+  const s = ethers.formatEther(wei);
+  const [i, f = ""] = s.split(".");
+  return dp === 0 ? i : i + "." + (f + "0".repeat(dp)).slice(0, dp);
+};
+const fmtDuration = (secs) => {
+  secs = Number(secs);
+  if (secs < 60) return secs + "s";
+  if (secs < 3600) return Math.floor(secs / 60) + "m";
+  if (secs < 86400) return Math.floor(secs / 3600) + "h";
+  return Math.floor(secs / 86400) + "d";
+};
+
+// ---------- Contract configured? ----------
+function contractConfigured() {
+  return CONTRACT_ADDRESS && CONTRACT_ADDRESS !== "0x0000000000000000000000000000000000000000";
+}
+
+// ---------- Wallet ----------
+async function connect() {
+  if (!window.ethereum) { toast("MetaMask not detected", "err"); return; }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    await ensureNetwork();
+    signer = await provider.getSigner();
+    account = await signer.getAddress();
+    document.getElementById("connectBtn").textContent = truncate(account);
+
+    if (contractConfigured()) {
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    }
+    await refreshAll();
+    toast("Connected", "ok");
+
+    window.ethereum.on("accountsChanged", () => window.location.reload());
+    window.ethereum.on("chainChanged", () => window.location.reload());
+  } catch (e) {
+    console.error(e);
+    toast("Connection failed: " + (e.shortMessage || e.message || e), "err");
+  }
+}
+
+async function ensureNetwork() {
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: NETWORK.chainIdHex }],
+    });
+  } catch (err) {
+    if (err.code === 4902 || (err.data && err.data.originalError && err.data.originalError.code === 4902)) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: NETWORK.chainIdHex,
+            chainName: NETWORK.name,
+            rpcUrls: [NETWORK.rpc],
+            nativeCurrency: NETWORK.currency,
+            blockExplorerUrls: [NETWORK.explorer],
+          }],
+        });
+      } catch (addErr) {
+        toast("Network add rejected", "err");
+        throw addErr;
+      }
+    } else if (err.code === 4001) {
+      toast("Network switch rejected", "err");
+      throw err;
+    } else {
+      throw err;
+    }
+  }
+}
+
+// ---------- Data ----------
+async function refreshAll() {
+  if (!contractConfigured()) {
+    document.getElementById("emptyContract").style.display = "block";
+    return;
+  }
+  document.getElementById("emptyContract").style.display = "none";
+
+  await Promise.all([refreshStats(), refreshStreams()]);
+  renderTab();
+  startTicking();
+}
+
+async function refreshStats() {
+  try {
+    const total = await contract.streamCount();
+    document.getElementById("statTotal").textContent = total.toString();
+
+    if (account) {
+      const bal = await provider.getBalance(account);
+      document.getElementById("statBalance").textContent = fmt(bal, 4) + " BOT";
+    }
+  } catch (e) { console.warn(e); }
+}
+
+async function refreshStreams() {
+  if (!account) return;
+  const [inIds, outIds] = await Promise.all([
+    contract.getStreamsByRecipient(account),
+    contract.getStreamsBySender(account),
+  ]);
+  const load = async (ids) => {
+    const out = [];
+    for (const id of ids) {
+      try {
+        const s = await contract.getStream(id);
+        out.push({
+          id: id.toString(),
+          sender: s.sender, recipient: s.recipient,
+          totalAmount: s.totalAmount, ratePerSec: s.ratePerSec,
+          startTime: Number(s.startTime), duration: Number(s.duration),
+          withdrawn: s.withdrawn, active: s.active,
+        });
+      } catch(e) { console.warn("getStream failed", id, e); }
+    }
+    return out.reverse();
+  };
+  cachedStreams.incoming = await load(inIds);
+  cachedStreams.outgoing = await load(outIds);
+
+  // stats: active count & total volume streamed = sum of min(elapsed*rate, total) across ALL streams the user is party to
+  const seen = new Set();
+  const all = [...cachedStreams.incoming, ...cachedStreams.outgoing].filter(s => {
+    if (seen.has(s.id)) return false;
+    seen.add(s.id); return true;
+  });
+  const activeCount = all.filter(s => s.active).length;
+  document.getElementById("statActive").textContent = activeCount.toString();
+
+  let vol = 0n;
+  const now = BigInt(Math.floor(Date.now() / 1000));
+  for (const s of all) {
+    const elapsed = now - BigInt(s.startTime);
+    let streamed = elapsed * s.ratePerSec;
+    if (streamed > s.totalAmount) streamed = s.totalAmount;
+    if (streamed < 0n) streamed = 0n;
+    vol += streamed;
+  }
+  document.getElementById("statVolume").textContent = fmt(vol, 4) + " BOT";
+}
+
+// ---------- Render ----------
+function renderTab() {
+  document.getElementById("tabIncoming").style.display = currentTab === "incoming" ? "grid" : "none";
+  document.getElementById("tabOutgoing").style.display = currentTab === "outgoing" ? "grid" : "none";
+  renderList("incoming", cachedStreams.incoming, document.getElementById("tabIncoming"));
+  renderList("outgoing", cachedStreams.outgoing, document.getElementById("tabOutgoing"));
+}
+
+function renderList(kind, streams, container) {
+  container.innerHTML = "";
+  if (!streams.length) {
+    const e = document.createElement("div");
+    e.className = "empty";
+    e.style.gridColumn = "1 / -1";
+    e.innerHTML = kind === "incoming"
+      ? "<h3>No incoming streams yet</h3><p>When someone opens a stream to your wallet, it appears here — with BOT ticking up in real time.</p>"
+      : "<h3>No outgoing streams yet</h3><p>Open one above. The recipient will start receiving BOT the moment the tx is mined.</p>";
+    container.appendChild(e);
+    return;
+  }
+  for (const s of streams) container.appendChild(makeCard(kind, s));
+}
+
+function makeCard(kind, s) {
+  const el = document.createElement("div");
+  el.className = "stream-card " + (s.active ? "active" : "inactive");
+  el.dataset.id = s.id;
+
+  const other = kind === "incoming" ? s.sender : s.recipient;
+  const otherLabel = kind === "incoming" ? "From" : "To";
+
+  el.innerHTML = `
+    <div class="river"></div>
+    <div class="content">
+      <div class="stream-head">
+        <div class="stream-parties">#${s.id} · ${otherLabel} <b>${truncate(other)}</b></div>
+        <div class="stream-status ${s.active ? "" : "done"}">${s.active ? "streaming" : "closed"}</div>
+      </div>
+      <div class="amount-live mono" data-role="live">0.000000</div>
+      <div class="amount-sub">
+        withdrawable of <span class="mono">${fmt(s.totalAmount, 4)}</span> BOT total
+        · <span class="mono">${fmt(s.ratePerSec, 8)}</span>/s
+      </div>
+      <div class="stream-meta">
+        <div class="progress"><div class="bar" data-role="bar" style="width:0%"></div></div>
+        <div class="mono" style="font-size:12px;color:var(--muted)" data-role="remain">—</div>
+      </div>
+      <div class="stream-actions">
+        ${kind === "incoming" && s.active ? `<button class="btn btn-primary" data-role="withdraw">Withdraw</button>` : ""}
+        ${kind === "outgoing" && s.active ? `<button class="btn btn-danger" data-role="cancel">Cancel Stream</button>` : ""}
+        <a class="btn btn-ghost" href="${NETWORK.explorer}/address/${CONTRACT_ADDRESS}" target="_blank">Explorer</a>
+      </div>
+    </div>
+  `;
+
+  const wBtn = el.querySelector("[data-role=withdraw]");
+  if (wBtn) wBtn.onclick = () => onWithdraw(s.id);
+  const cBtn = el.querySelector("[data-role=cancel]");
+  if (cBtn) cBtn.onclick = () => onCancel(s.id);
+
+  return el;
+}
+
+// ---------- Ticking ----------
+function startTicking() {
+  if (tickTimer) clearInterval(tickTimer);
+  tickTimer = setInterval(tick, 1000);
+  tick();
+}
+
+function tick() {
+  const nowSec = Math.floor(Date.now() / 1000);
+  document.querySelectorAll(".stream-card").forEach(card => {
+    const id = card.dataset.id;
+    const list = [...cachedStreams.incoming, ...cachedStreams.outgoing];
+    const s = list.find(x => x.id === id);
+    if (!s) return;
+    const elapsed = BigInt(Math.max(0, nowSec - s.startTime));
+    let streamed = elapsed * s.ratePerSec;
+    if (streamed > s.totalAmount) streamed = s.totalAmount;
+    let withdrawable = streamed - s.withdrawn;
+    if (withdrawable < 0n) withdrawable = 0n;
+
+    const liveEl = card.querySelector("[data-role=live]");
+    if (liveEl) liveEl.textContent = fmt(withdrawable, 6);
+
+    const barEl = card.querySelector("[data-role=bar]");
+    const pct = Number((streamed * 10000n) / (s.totalAmount === 0n ? 1n : s.totalAmount)) / 100;
+    if (barEl) barEl.style.width = Math.min(100, Math.max(0, pct)).toFixed(2) + "%";
+
+    const remainEl = card.querySelector("[data-role=remain]");
+    if (remainEl) {
+      const remainSec = Math.max(0, (s.startTime + s.duration) - nowSec);
+      remainEl.textContent = s.active ? (remainSec > 0 ? fmtDuration(remainSec) + " left" : "fully streamed") : "closed";
+    }
+  });
+}
+
+// ---------- Actions ----------
+async function onOpen() {
+  if (!signer) return toast("Connect wallet first", "err");
+  if (!contractConfigured()) return toast("Contract address not set", "err");
+
+  const recipient = document.getElementById("recipient").value.trim();
+  const amountStr = document.getElementById("amount").value.trim();
+  const durSel = document.getElementById("duration").value;
+  const customVal = document.getElementById("customSecs").value.trim();
+  const duration = durSel === "custom" ? Number(customVal) : Number(durSel);
+
+  if (!ethers.isAddress(recipient)) return toast("Invalid recipient", "err");
+  let value;
+  try { value = ethers.parseEther(amountStr); } catch { return toast("Invalid amount", "err"); }
+  if (value <= 0n) return toast("Amount must be > 0", "err");
+  if (!duration || duration < 1) return toast("Invalid duration", "err");
+
+  try {
+    toast("Opening stream…", "info");
+    const tx = await contract.openStream(recipient, duration, { value });
+    await tx.wait();
+    toast("Stream opened", "ok");
+    document.getElementById("recipient").value = "";
+    document.getElementById("amount").value = "";
+    await refreshAll();
+  } catch (e) {
+    console.error(e);
+    toast("Open failed: " + (e.shortMessage || e.reason || e.message), "err");
+  }
+}
+
+async function onWithdraw(id) {
+  try {
+    toast("Withdrawing…", "info");
+    const tx = await contract.withdraw(id);
+    await tx.wait();
+    toast("Withdrawn", "ok");
+    await refreshAll();
+  } catch (e) {
+    console.error(e);
+    toast("Withdraw failed: " + (e.shortMessage || e.reason || e.message), "err");
+  }
+}
+
+async function onCancel(id) {
+  if (!confirm("Cancel this stream? Recipient will receive the accrued amount; the rest returns to you.")) return;
+  try {
+    toast("Cancelling…", "info");
+    const tx = await contract.cancel(id);
+    await tx.wait();
+    toast("Stream cancelled", "ok");
+    await refreshAll();
+  } catch (e) {
+    console.error(e);
+    toast("Cancel failed: " + (e.shortMessage || e.reason || e.message), "err");
+  }
+}
+
+// ---------- Wiring ----------
+document.getElementById("connectBtn").onclick = connect;
+document.getElementById("openBtn").onclick = onOpen;
+document.getElementById("duration").onchange = (e) => {
+  document.getElementById("customWrap").classList.toggle("show", e.target.value === "custom");
+};
+document.querySelectorAll(".tab").forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    currentTab = t.dataset.tab;
+    renderTab();
+    tick();
+  };
+});
+
+// Initial render
+if (!contractConfigured()) {
+  document.getElementById("emptyContract").style.display = "block";
+}
+renderTab();
+</script>
+</body>
+</html>
